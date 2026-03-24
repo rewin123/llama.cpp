@@ -13,11 +13,6 @@ jobs:
     runs-on: windows-2022
 
     steps:
-      - name: Checkout llama.cpp
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.branch }}
-
       - name: Install CUDA Toolkit 11.8
         uses: Jimver/cuda-toolkit@v0.2.19
         id: cuda-toolkit
@@ -39,6 +34,11 @@ jobs:
             $_ -replace '_EMIT_STL_ERROR\(STL1002,.*\)', '/* patched for CUDA 11.8 */'
           } | Set-Content $header.FullName
           Write-Host "Done"
+
+      - name: Checkout llama.cpp
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch }}
 
       - name: Configure CMake
         run: |
