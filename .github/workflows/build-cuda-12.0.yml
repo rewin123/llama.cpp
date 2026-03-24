@@ -1,0 +1,66 @@
+name: Build llama.cpp CUDA 12.0
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch or tag to build'
+        required: false
+        default: 'master'
+
+jobs:
+  build-windows-cuda-12-0:
+    runs-on: windows-2022
+
+    steps:
+      - name: Install CUDA Toolkit 12.0
+        uses: Jimver/cuda-toolkit@v0.2.19
+        id: cuda-toolkit
+        with:
+          cuda: '12.0.0'
+          method: 'network'
+
+      - name: Verify CUDA
+        run: |
+          nvcc --version
+          echo "CUDA_PATH: $env:CUDA_PATH"
+
+      - name: Checkout llama.cpp
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch }}
+
+      - name: Configure CMake
+        run: |
+          cmake -B build `
+            -DGGML_CUDA=ON `
+            -DGGML_CUDA_FA_ALL_QUANTS=ON `
+            -DCMAKE_CUDA_ARCHITECTURES=70 `
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: |
+          cmake --build build --config Release -j $env:NUMBER_OF_PROCESSORS
+
+      - name: Collect artifacts
+        run: |
+          New-Item -ItemType Directory -Force -Path artifact
+          # Copy exe files
+          Copy-Item build/bin/Release/*.exe artifact/ -ErrorAction SilentlyContinue
+          Copy-Item build/bin/*.exe artifact/ -ErrorAction SilentlyContinue
+          # Copy DLL files (ggml, llama, cuda runtime)
+          Copy-Item build/bin/Release/*.dll artifact/ -ErrorAction SilentlyContinue
+          Copy-Item build/bin/*.dll artifact/ -ErrorAction SilentlyContinue
+          # Copy CUDA runtime DLLs
+          Copy-Item "$env:CUDA_PATH/bin/cudart64_*.dll" artifact/ -ErrorAction SilentlyContinue
+          Copy-Item "$env:CUDA_PATH/bin/cublas64_*.dll" artifact/ -ErrorAction SilentlyContinue
+          Copy-Item "$env:CUDA_PATH/bin/cublasLt64_*.dll" artifact/ -ErrorAction SilentlyContinue
+          # List files
+          Get-ChildItem artifact/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: llama-cpp-win-cuda-12.0-sm70
+          path: artifact/
+          retention-days: 30
