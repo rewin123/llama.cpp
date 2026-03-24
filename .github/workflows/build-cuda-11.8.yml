@@ -28,12 +28,14 @@ jobs:
       - name: Patch MSVC STL for CUDA 11.8 compatibility
         run: |
           $msvcBase = "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC"
-          $header = Get-ChildItem -Path $msvcBase -Recurse -Filter "yvals_core.h" | Select-Object -First 1
-          Write-Host "Patching: $($header.FullName)"
-          (Get-Content $header.FullName) | ForEach-Object {
-            $_ -replace '_EMIT_STL_ERROR\(STL1002,.*\)', '/* patched for CUDA 11.8 */'
-          } | Set-Content $header.FullName
-          Write-Host "Done"
+          $headers = Get-ChildItem -Path $msvcBase -Recurse -Filter "yvals_core.h"
+          foreach ($header in $headers) {
+            Write-Host "Patching: $($header.FullName)"
+            (Get-Content $header.FullName) | ForEach-Object {
+              $_ -replace '_EMIT_STL_ERROR\(STL1002,.*\)', '/* patched for CUDA 11.8 */'
+            } | Set-Content $header.FullName
+          }
+          Write-Host "Patched $($headers.Count) file(s)"
 
       - name: Checkout llama.cpp
         uses: actions/checkout@v4
